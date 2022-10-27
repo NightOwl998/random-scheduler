@@ -6,16 +6,17 @@ import (
 	"math/rand"
 	"time"
 
-	"k8s.io/api/core/v1"
+	"errors"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listersv1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"errors"
 )
 
 const schedulerName = "random-scheduler"
@@ -205,6 +206,7 @@ func (s *Scheduler) runPredicates(nodes []*v1.Node, pod *v1.Pod) []*v1.Node {
 	return filteredNodes
 }
 
+// Here we change the predicates to get only fit nodes.
 func (s *Scheduler) predicatesApply(node *v1.Node, pod *v1.Pod) bool {
 	for _, predicate := range s.predicates {
 		if !predicate(node, pod) {
@@ -214,7 +216,20 @@ func (s *Scheduler) predicatesApply(node *v1.Node, pod *v1.Pod) bool {
 	return true
 }
 
+// Here we ill be changing random predicates to actual predicates
 func randomPredicate(node *v1.Node, pod *v1.Pod) bool {
+
+	for _, container := range pod.Spec.InitContainers {
+		for rName, rQuantity := range container.Resources.Requests {
+			switch rName {
+			case v1.ResourceCPU:
+				CPU := rQuantity.MilliValue()
+			case v1.ResourceMemory:
+				mem := rQuantity.Value()
+			default:
+			}
+		}
+	}
 	r := rand.Intn(2)
 	return r == 0
 }
@@ -242,6 +257,7 @@ func (s *Scheduler) findBestNode(priorities map[string]int) string {
 	return bestNode
 }
 
+// Here we will be changing in the random priority.
 func randomPriority(node *v1.Node, pod *v1.Pod) int {
 	return rand.Intn(100)
 }
